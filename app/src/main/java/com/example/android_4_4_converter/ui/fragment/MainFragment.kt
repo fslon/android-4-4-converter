@@ -46,77 +46,78 @@ class MainFragment : MvpAppCompatFragment(), UsersView, BackButtonListener {
     }
 
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentMainBinding.inflate(inflater, container, false)
-
         binding.buttonGetFile.setOnClickListener { presenter.onFileChooserButtonClicked() }
-
         return binding.root
     }
 
-    override fun showFileChooser() {
-
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
         val permission = Manifest.permission.WRITE_EXTERNAL_STORAGE
-        if (ContextCompat.checkSelfPermission(requireActivity(), permission) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(
+                requireActivity(),
+                permission
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
             // Разрешение не предоставлено, запросите его
-            ActivityCompat.requestPermissions(requireActivity(), arrayOf(permission), REQUEST_CODE_FILE_CHOOSER)
-
-        } else {
-            // Разрешение уже предоставлено, можно выполнять операции с файлами
+            ActivityCompat.requestPermissions( // получение разрешения на доступ к файлам
+                requireActivity(),
+                arrayOf(permission),
+                REQUEST_CODE_FILE_CHOOSER
+            )
         }
+    }
 
-
+    override fun showFileChooser() { // открытие окна выбора файлов
         val intent = Intent(Intent.ACTION_GET_CONTENT)
         intent.type = "image/jpeg"
         startActivityForResult(intent, REQUEST_CODE_FILE_CHOOSER)
-
     }
 
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) { // срабатывает при выборе файла в окне с файлами
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_CODE_FILE_CHOOSER && resultCode == Activity.RESULT_OK) {
-            val selectedFileUri = data?.data
 
+        if (requestCode == REQUEST_CODE_FILE_CHOOSER && resultCode == Activity.RESULT_OK) { // если это интент выбора файла и результат успешно получен
+            val selectedFileUri = data?.data // переменная с URI файла
             selectedFileUri?.let { uri ->
 
-                val selectedFile = File(uri.path) // Преобразование Uri в File
-// Используем RxJava2 для асинхронного выполнения операций
+                val selectedFile = File(uri.path) // преобразование Uri в File
 
-                disposable.add(
+                disposable.add(                      // Используем RxJava2 для асинхронного выполнения операций
                     Observable.fromCallable { convertFileToPNG(selectedFile) }
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe { outputFile ->  // Здесь вы можете сохранить outputFile на место старого файла JPEG
+                        .subscribe { outputFile ->
                             Toast.makeText(requireContext(), "Файл успешно преобразован", Toast.LENGTH_SHORT).show()
-                            Log.e("-----------------", "CONVERT IS DONE")
+//                            Log.e("-----------------", "CONVERT IS DONE")
 
-                            saveFileToExplorer(outputFile)
-
-
+                            saveFileToExplorer(outputFile) // сохранение файла-
                         }
                 )
-
 
             }
         }
     }
 
-    //    /document/primary:Pictures/picture-en3dnh2zi84sgt3t.jpg
-//        /storage/emulated/0/Pictures/picture-en3dnh2zi84sgt3t.jpg
-    private fun convertFileToPNG(inputFile: File): File {
-        Log.e("filename ", inputFile.toPath().fileName.toString())
-        Log.e("root ", inputFile.toPath().root.toString())
-        Log.e("name ", inputFile.toPath().name.toString())
-        Log.e("fileName ", inputFile.toPath().fileName.toString())
-        Log.e("nameWithoutExtension ", inputFile.toPath().nameWithoutExtension.toString())
-        Log.e("path ", inputFile.path)
-        Log.e("inputFile.parentFile.absolutePath ", inputFile.parentFile.absolutePath)
-        Log.e("path cut ", inputFile.path.substringAfter(":"))
+    //    /document/primary:Pictures/picture-en3dnh2zi84sgt3t.jpg - приходит такая ссылка
+//        /storage/emulated/0/Pictures/picture-en3dnh2zi84sgt3t.jpg - такая должна быть [не везде]
+
+    private fun convertFileToPNG(inputFile: File): File { // конвертация файла JPEG -> PNG
+//        Log.e("filename ", inputFile.toPath().fileName.toString())
+//        Log.e("root ", inputFile.toPath().root.toString())
+//        Log.e("name ", inputFile.toPath().name.toString())
+//        Log.e("fileName ", inputFile.toPath().fileName.toString())
+//        Log.e("nameWithoutExtension ", inputFile.toPath().nameWithoutExtension.toString())
+//        Log.e("path ", inputFile.path)
+//        Log.e("inputFile.parentFile.absolutePath ", inputFile.parentFile.absolutePath)
+//        Log.e("path cut ", inputFile.path.substringAfter(":"))
         getFilePath(inputFile)
 
+        Log.e("******* ", requireContext().cacheDir.toString())
+
         val outputFile = File(requireContext().cacheDir, "converted_image.png")
-//        val bitmap: Bitmap = BitmapFactory.decodeFile(getFilePath(inputFile))
         val bitmap: Bitmap = BitmapFactory.decodeFile(inputFilePath)
         val outputStream = FileOutputStream(outputFile)
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
@@ -127,15 +128,14 @@ class MainFragment : MvpAppCompatFragment(), UsersView, BackButtonListener {
     }
 
     private fun getFilePath(inputFile: File) { // получение абсолютного пути файла
-        inputFilePath = "/storage/emulated/0/" + inputFile.path.substringAfter(":")
-//        return "/storage/emulated/0/" + inputFile.path.substringAfter(":") // небольшой первой части пути файла
+        inputFilePath = "/storage/emulated/0/" + inputFile.path.substringAfter(":") // небольшой хардкод первой части пути файла
+//        return "/storage/emulated/0/" + inputFile.path.substringAfter(":")
     }
 
 
-    private fun saveFileToExplorer(inputFile: File) {
+    private fun saveFileToExplorer(inputFile: File) { // сохранение преобразованного файла (в формате PNG) в файлы устройства
 
-
-        val fileObservable = Observable.just(inputFile)
+        val fileObservable = Observable.just(inputFile) // TODO разобраться с этой строкой, по хорошему удалить
         val ioScheduler = Schedulers.io()
         val saveFileObservable = fileObservable
             .observeOn(ioScheduler)
@@ -164,6 +164,7 @@ class MainFragment : MvpAppCompatFragment(), UsersView, BackButtonListener {
         saveFileObservable.subscribe(
             {
                 Log.e(",,,,,,,,,,", "ГОТОВО")
+                // TODO показать toast что файл сохранен
             },
             { error ->
                 Log.e(",,,,,,,,,,", "ОШИБКА")
@@ -182,7 +183,9 @@ class MainFragment : MvpAppCompatFragment(), UsersView, BackButtonListener {
 
 
     companion object {
-        private const val REQUEST_CODE_FILE_CHOOSER = 100
+        private const val REQUEST_CODE_FILE_CHOOSER =
+            100 // используется для идентификации запроса выбора файла, и затем в методе "onActivityResult" проверяется, что результат соответствует этому запросу
+
         fun newInstance(): MainFragment = MainFragment()
     }
 

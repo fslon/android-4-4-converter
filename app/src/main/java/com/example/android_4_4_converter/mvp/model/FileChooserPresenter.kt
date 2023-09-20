@@ -6,4 +6,5 @@ import android.content.Intent
 interface FileChooserPresenter {
     fun onFileChooserButtonClicked()
     fun fileHasBeenSelected(data: Intent?, contentResolver: ContentResolver)
+
 }
