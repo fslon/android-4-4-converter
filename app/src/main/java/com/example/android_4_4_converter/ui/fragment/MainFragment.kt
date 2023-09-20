@@ -1,7 +1,6 @@
 package com.example.android_4_4_converter.ui.fragment
 
 import android.Manifest
-import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -21,6 +20,7 @@ import com.example.android_4_4_converter.mvp.view.UsersView
 import com.example.android_4_4_converter.navigation.AndroidScreens
 import com.example.android_4_4_converter.ui.activity.BackButtonListener
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.schedulers.Schedulers
@@ -29,8 +29,6 @@ import moxy.ktx.moxyPresenter
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import kotlin.io.path.name
-import kotlin.io.path.nameWithoutExtension
 
 
 class MainFragment : MvpAppCompatFragment(), UsersView, BackButtonListener {
@@ -75,30 +73,38 @@ class MainFragment : MvpAppCompatFragment(), UsersView, BackButtonListener {
         startActivityForResult(intent, REQUEST_CODE_FILE_CHOOSER)
     }
 
+    override fun showToast(text: String) {
+        Completable.complete().observeOn(AndroidSchedulers.mainThread()).doOnComplete {
+            Toast.makeText(requireContext(), text, Toast.LENGTH_SHORT).show()
+        }.subscribe()
+    }
+
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) { // срабатывает при выборе файла в окне с файлами
         super.onActivityResult(requestCode, resultCode, data)
 
-        if (requestCode == REQUEST_CODE_FILE_CHOOSER && resultCode == Activity.RESULT_OK) { // если это интент выбора файла и результат успешно получен
-            val selectedFileUri = data?.data // переменная с URI файла
-            selectedFileUri?.let { uri ->
+        presenter.fileHasBeenSelected(requestCode, resultCode, data, requireContext().cacheDir)
 
-                val selectedFile = File(uri.path) // преобразование Uri в File
+//        if (requestCode == REQUEST_CODE_FILE_CHOOSER && resultCode == Activity.RESULT_OK) { // если это интент выбора файла и результат успешно получен
+//            val selectedFileUri = data?.data // переменная с URI файла
+//            selectedFileUri?.let { uri ->
+//
+//                val selectedFile = File(uri.path) // преобразование Uri в File
+//
+//                disposable.add(                      // Используем RxJava2 для асинхронного выполнения операций
+//                    Observable.fromCallable { convertFileToPNG(selectedFile) }
+//                        .subscribeOn(Schedulers.io())
+//                        .observeOn(AndroidSchedulers.mainThread())
+//                        .subscribe { outputFile ->
+//                            Toast.makeText(requireContext(), "Файл успешно преобразован", Toast.LENGTH_SHORT).show()
+////                            Log.e("-----------------", "CONVERT IS DONE")
+//
+//                            saveFileToExplorer(outputFile) // сохранение файла-
+//                        }
+//                )
+//            }
+//        }
 
-                disposable.add(                      // Используем RxJava2 для асинхронного выполнения операций
-                    Observable.fromCallable { convertFileToPNG(selectedFile) }
-                        .subscribeOn(Schedulers.io())
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe { outputFile ->
-                            Toast.makeText(requireContext(), "Файл успешно преобразован", Toast.LENGTH_SHORT).show()
-//                            Log.e("-----------------", "CONVERT IS DONE")
-
-                            saveFileToExplorer(outputFile) // сохранение файла-
-                        }
-                )
-
-            }
-        }
     }
 
     //    /document/primary:Pictures/picture-en3dnh2zi84sgt3t.jpg - приходит такая ссылка
@@ -183,7 +189,7 @@ class MainFragment : MvpAppCompatFragment(), UsersView, BackButtonListener {
 
 
     companion object {
-        private const val REQUEST_CODE_FILE_CHOOSER =
+        const val REQUEST_CODE_FILE_CHOOSER =
             100 // используется для идентификации запроса выбора файла, и затем в методе "onActivityResult" проверяется, что результат соответствует этому запросу
 
         fun newInstance(): MainFragment = MainFragment()

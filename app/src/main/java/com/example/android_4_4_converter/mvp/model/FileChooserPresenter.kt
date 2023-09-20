@@ -1,10 +1,10 @@
 package com.example.android_4_4_converter.mvp.model
 
-import android.content.ContentResolver
 import android.content.Intent
+import java.io.File
 
-interface FileChooserPresenter {
+interface FileChooserPresenter { // fragment -> presenter
     fun onFileChooserButtonClicked()
-    fun fileHasBeenSelected(data: Intent?, contentResolver: ContentResolver)
+    fun fileHasBeenSelected(requestCode: Int, resultCode: Int, data: Intent?, cacheDir: File)
 
 }
