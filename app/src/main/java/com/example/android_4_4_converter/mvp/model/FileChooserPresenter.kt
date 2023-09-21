@@ -5,6 +5,6 @@ import java.io.File
 
 interface FileChooserPresenter { // fragment -> presenter
     fun onFileChooserButtonClicked()
-    fun fileHasBeenSelected(requestCode: Int, resultCode: Int, data: Intent?, cacheDir: File)
+    fun fileHasBeenSelected(requestCode: Int, resultCode: Int, data: Intent?, cacheDir: File, requestCodeFileChooser: Int)
 
 }

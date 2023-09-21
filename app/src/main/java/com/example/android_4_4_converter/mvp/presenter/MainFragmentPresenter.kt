@@ -8,11 +8,10 @@ import android.util.Log
 import com.example.android_4_4_converter.mvp.model.FileChooserPresenter
 import com.example.android_4_4_converter.mvp.view.UsersView
 import com.example.android_4_4_converter.navigation.IScreens
-import com.example.android_4_4_converter.ui.fragment.MainFragment
 import com.github.terrakok.cicerone.Router
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Completable
-import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.schedulers.Schedulers
 import moxy.MvpPresenter
@@ -34,53 +33,48 @@ class MainFragmentPresenter(val router: Router, val screens: IScreens, private v
         view.showFileChooser()
     }
 
-    override fun fileHasBeenSelected(requestCode: Int, resultCode: Int, data: Intent?, cacheDir: File) {
+    override fun fileHasBeenSelected(requestCode: Int, resultCode: Int, data: Intent?, cacheDir: File, requestCodeFileChooser: Int) {
 
         this.cacheDir = cacheDir
 
-        if (requestCode == MainFragment.REQUEST_CODE_FILE_CHOOSER && resultCode == Activity.RESULT_OK) { // если это интент выбора файла и результат успешно получен
+        if (requestCode == requestCodeFileChooser && resultCode == Activity.RESULT_OK) { // если это интент выбора файла и результат успешно получен
             val selectedFileUri = data?.data // переменная с URI файла
             selectedFileUri?.let { uri ->
-
                 val selectedFile = File(uri.path) // преобразование Uri в File
 
-                disposable.add(                      // Используем RxJava2 для асинхронного выполнения операций
-                    Observable.fromCallable { convertFileToPNG(selectedFile) }
-                        .subscribeOn(Schedulers.io())
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe { outputFile ->
-                            view.showToast("Файл успешно преобразован")
+                getFilePath(selectedFile) // получение пути файла
 
+                disposable.add(
+                    convertFileToPNG().subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe({ outputFile -> // Обработка отформатированного файла
+                            view.showToast("Файл успешно преобразован")
                             saveFileToExplorer(outputFile) // сохранение файла
-                        }
+
+                        }, { error -> // Обработка ошибки
+                            error.printStackTrace()
+                        })
                 )
+
+
             }
         }
 
     }
 
-    private fun convertFileToPNG(inputFile: File): File { // конвертация файла JPEG -> PNG
-//        Log.e("filename ", inputFile.toPath().fileName.toString())
-//        Log.e("root ", inputFile.toPath().root.toString())
-//        Log.e("name ", inputFile.toPath().name.toString())
-//        Log.e("fileName ", inputFile.toPath().fileName.toString())
-//        Log.e("nameWithoutExtension ", inputFile.toPath().nameWithoutExtension.toString())
-//        Log.e("path ", inputFile.path)
-//        Log.e("inputFile.parentFile.absolutePath ", inputFile.parentFile.absolutePath)
-//        Log.e("path cut ", inputFile.path.substringAfter(":"))
-        getFilePath(inputFile)
+    private fun convertFileToPNG(): Single<File> { // конвертация файла JPEG -> PNG
+        return Single.fromCallable {
+            val outputFile = File(cacheDir, "converted_image.png")
+            val bitmap: Bitmap = BitmapFactory.decodeFile(inputFilePath)
+            val outputStream = FileOutputStream(outputFile)
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+            outputStream.flush()
+            outputStream.close()
 
+            return@fromCallable outputFile
+        }
 
-        val outputFile = File(cacheDir, "converted_image.png")
-        val bitmap: Bitmap = BitmapFactory.decodeFile(inputFilePath)
-        val outputStream = FileOutputStream(outputFile)
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-        outputStream.flush()
-        outputStream.close()
-
-        return outputFile
     }
-
 
     private fun getFilePath(inputFile: File) { // получение абсолютного пути файла
         inputFilePath = "/storage/emulated/0/" + inputFile.path.substringAfter(":") // небольшой хардкод первой части пути файла
@@ -107,14 +101,11 @@ class MainFragmentPresenter(val router: Router, val screens: IScreens, private v
             }
 
         }.subscribe({
-            Log.e(",,,,,,,,,,", "ГОТОВО")
-
+//            Log.e(",,,,,,,,,,", "ГОТОВО")
             view.showToast("Файл сохранен")
-            // TODO показать toast что файл сохранен
         },
             { error ->
-
-                Log.e(",,,,,,,,,,", "ОШИБКА")
+//                Log.e(",,,,,,,,,,", "ОШИБКА")
                 view.showToast("Ошибка сохранения файла!")
             })
 

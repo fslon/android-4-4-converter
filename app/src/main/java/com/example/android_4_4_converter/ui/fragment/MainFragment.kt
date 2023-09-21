@@ -83,7 +83,7 @@ class MainFragment : MvpAppCompatFragment(), UsersView, BackButtonListener {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) { // срабатывает при выборе файла в окне с файлами
         super.onActivityResult(requestCode, resultCode, data)
 
-        presenter.fileHasBeenSelected(requestCode, resultCode, data, requireContext().cacheDir)
+        presenter.fileHasBeenSelected(requestCode, resultCode, data, requireContext().cacheDir, REQUEST_CODE_FILE_CHOOSER)
 
 //        if (requestCode == REQUEST_CODE_FILE_CHOOSER && resultCode == Activity.RESULT_OK) { // если это интент выбора файла и результат успешно получен
 //            val selectedFileUri = data?.data // переменная с URI файла
